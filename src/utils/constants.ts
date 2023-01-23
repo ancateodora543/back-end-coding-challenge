@@ -1,0 +1,1 @@
+export const REFER_USER = "REFER_USER"
