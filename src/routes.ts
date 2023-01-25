@@ -1,5 +1,5 @@
 import { Router, Request, Response, } from 'express'
-import { Action, MapTraversed, ReferralMapping, User } from './typings/global'
+import { Action, MapTraversed, User } from './typings/global'
 import { checkIfActionExists, sortArray } from './utils/utils'
 import { validateInput } from './middlewares'
 import { REFER_USER } from './utils/constants'
@@ -55,20 +55,20 @@ router.get('/actions-probability/:actionType', (request: Request, response: Resp
     let actionTypeProbabilitiesMap = new Map()
     let totalCounter = 0
     actionsSortedByUserByDate.filter((filteredEntry: Action, index: number) => {
-        if (filteredEntry.type === actionType) {
-            if (index + 1 < actionsSortedByUserByDate.length && filteredEntry.userId === actionsSortedByUserByDate[index + 1].userId) {
-                const nextType = actionsSortedByUserByDate[index + 1].type
-                if (actionTypeProbabilitiesMap.has(nextType)) {
-                    actionTypeProbabilitiesMap.set(nextType, actionTypeProbabilitiesMap.get(nextType) + 1)
-                } else {
-                    actionTypeProbabilitiesMap.set(nextType, 1)
-                }
-                totalCounter++
-                return true
+        if (filteredEntry.type !== actionType) {
+            return false
+        }
+        if (index + 1 < actionsSortedByUserByDate.length && filteredEntry.userId === actionsSortedByUserByDate[index + 1].userId) {
+            const nextType = actionsSortedByUserByDate[index + 1].type
+            if (actionTypeProbabilitiesMap.has(nextType)) {
+                actionTypeProbabilitiesMap.set(nextType, actionTypeProbabilitiesMap.get(nextType) + 1)
+            } else {
+                actionTypeProbabilitiesMap.set(nextType, 1)
             }
+            totalCounter++
+            return true
         }
         return false
-
     })
 
     let responseJson: any
@@ -111,42 +111,56 @@ router.get('/referral-index', (request: Request, response: Response) => {
 
 
     const resultMap = new Map()
+    const traversed: MapTraversed = {}
 
-    for (const [key, value] of mapReferral.entries()) {
-        const stack = value
-        const traversed: MapTraversed = {}
-        let children = 0
-        let curr
-        while (stack.length) {
-            curr = stack.pop();
-            children += 1
-            traversed[curr] = true
-            if (mapReferral.has(curr)) {
-                const values = mapReferral.get(curr)
-                for (const valueEntry of values) {
-                    if (!traversed[valueEntry]) {
-                        stack.push(valueEntry)
-                    }
+    function dfs(vertex: number, children: number): any {
+        if (resultMap.has(vertex)) {
+            return resultMap.get(vertex)
+        }
+        traversed[vertex] = true
+
+        if (!mapReferral.has(vertex)) {
+            resultMap.set(vertex, children)
+            return children
+        }
+        const values = mapReferral.get(vertex)
+        for (const valueEntry of values) {
+            if (!traversed[valueEntry]) {
+                if (resultMap.has(vertex)) {
+                    resultMap.set(vertex, resultMap.get(vertex) + 1 + dfs(valueEntry, 0))
+                } else {
+                    resultMap.set(vertex, 1 + dfs(valueEntry, 0))
+                }
+            } else {
+                if (resultMap.has(vertex)) {
+                    resultMap.set(vertex, resultMap.get(vertex) + 1 + resultMap.get(valueEntry))
+                } else {
+                    resultMap.set(vertex, 1 + (resultMap.get(valueEntry) || 0))
                 }
             }
         }
-        resultMap.set(key, children)
+        return resultMap.get(vertex)
     }
-    let responseJson: ReferralMapping = {}
+
+    for (const key of mapReferral.keys()) {
+        dfs(key, 0)
+    }
+    let obj = Object.fromEntries(resultMap)
+
     for (const user of users) {
         if (!resultMap.has(user.id)) {
-            responseJson = {
-                ...responseJson,
+            obj = {
+                ...obj,
                 [Number(user.id)]: 0
             }
         } else {
-            responseJson = {
-                ...responseJson,
+            obj = {
+                ...obj,
                 [Number(user.id)]: resultMap.get(user.id)
             }
         }
     }
-    response.status(200).json(responseJson)
+    response.status(200).json(obj)
 
 })
 
