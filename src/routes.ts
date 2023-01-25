@@ -13,7 +13,7 @@ router.get('/users/:id', validateInput, (request: Request, response: Response) =
     if (user) {
         response.status(200).json(user)
     } else {
-        response.status(200).send("User was not found")
+        response.status(400).send("User was not found")
     }
 })
 
