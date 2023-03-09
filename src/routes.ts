@@ -1,6 +1,6 @@
 import { Router, Request, Response, } from 'express'
 import { Action, MapTraversed, User } from './typings/global'
-import { checkIfActionExists, sortArray } from './utils/utils'
+import { checkIfActionExists, recursionGetHighestNumber, sortArray } from './utils/utils'
 import { validateInput } from './middlewares'
 import { REFER_USER } from './utils/constants'
 
@@ -162,6 +162,29 @@ router.get('/referral-index', (request: Request, response: Response) => {
     }
     response.status(200).json(obj)
 
+})
+
+router.get('/testing', (request: Request, response: Response) => {
+
+    const array = [-100, -101, -200]
+    const max = recursionGetHighestNumber(array)
+    const array2 = [-100, 0, -2]
+    const max2 = recursionGetHighestNumber(array2)
+    // const array3 = ['blabla', 0, -2]
+    // const max3 = getHighestNumberinAnArray(array3)
+    // const array3 = [20.5, 0, -2]
+    // const max3 = getHighestNumberinAnArray(array3)
+
+    response.status(200).json([
+        {
+            expected: -100,
+            got: max,
+        },
+        {
+            expected: 0,
+            got: max2
+        },
+    ])
 })
 
 
